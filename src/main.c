@@ -56,8 +56,12 @@ void SettingKey(void)
     {
         dices_num = (dices_num == kDiceMaxNum) ? 1 : dices_num + 1;
         memset(leds, 1, kDiceMaxNum);
+        setting_backup = 1;
     }
-    setting_backup = setting_status;
+    else if ((setting_backup == 1) && (setting_status == 0))
+    {
+        setting_backup = 0;
+    }
 }
 
 void RollingKey(void)
@@ -70,8 +74,9 @@ void RollingKey(void)
         {
             leds[i] = 8;
         }
+        rolling_backup = 0;
     }
-    if ((rolling_backup == 0) && (rolling_status == 1)) // Rolling key is released
+    else if ((rolling_backup == 0) && (rolling_status == 1)) // Rolling key is released
     {
         static u8 ever_rolled = 0;
         if (ever_rolled == 0) // Update seed
@@ -86,8 +91,8 @@ void RollingKey(void)
         {
             leds[i] = rand() % 6 + 1;
         }
+        rolling_backup = 1;
     }
-    rolling_backup = rolling_status;
 }
 
 void KeysInspect(void);
