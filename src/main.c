@@ -6,15 +6,15 @@
 #include "my_header.h"
 #include "stc15wxx.h"
 
-typedef unsigned char u8;
-typedef unsigned int u16;
+typedef unsigned char uint8_t;
+typedef unsigned int uint16_t;
 
 SBIT(rolling, 0xB0, 2);  // P3_2 K3 rolling key
 SBIT(setting, 0xB0, 3);  // P3_3 k4 setting key
 
-__code const u8 kNumCoding[16] = {0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D,
-                                  0x7D, 0x07, 0x7F, 0x6F, 0x77, 0x7C,
-                                  0x39, 0x5E, 0x79, 0x71};  // 0 to F
+__code const uint8_t kNumCoding[16] = {0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D,
+                                       0x7D, 0x07, 0x7F, 0x6F, 0x77, 0x7C,
+                                       0x39, 0x5E, 0x79, 0x71};  // 0 to F
 
 #define DICE_MAX_NUM 4
 #define IDLE_TIME 30000
@@ -22,11 +22,11 @@ __code const u8 kNumCoding[16] = {0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D,
 #define DEFAULT_DICES_NUM 2
 #define DEFAULT_ENABLE 0x03
 
-u8 encodings[DICE_MAX_NUM] = {kNumCoding[1]};
-u8 enable = DEFAULT_ENABLE;  // LED position enable
-u8 dices_num = DEFAULT_DICES_NUM;
-u8 setting_status = 1,
-   rolling_status = 1;  // Key status 0: pressed, 1: unpressed
+uint8_t encodings[DICE_MAX_NUM] = {kNumCoding[1]};
+uint8_t enable = DEFAULT_ENABLE;  // LED position enable
+uint8_t dices_num = DEFAULT_DICES_NUM;
+uint8_t setting_status = 1,
+        rolling_status = 1;  // Key status 0: pressed, 1: unpressed
 
 void Init(void);
 void SettingKey(void);
@@ -58,14 +58,14 @@ void Init(void) {
  * @brief Process Setting Key info
  */
 void SettingKey(void) {
-    static u8 setting_backup = 1;
+    static uint8_t setting_backup = 1;
     if ((setting_backup == 0) &&
         (setting_status == 1))  // Setting key is released
     {
         dices_num = (dices_num == DICE_MAX_NUM) ? 1 : dices_num + 1;
         memset(encodings, kNumCoding[1], DICE_MAX_NUM);
         enable = 0;
-        for (u8 i = 0; i < dices_num; ++i) {
+        for (uint8_t i = 0; i < dices_num; ++i) {
             enable |= 1 << i;
         }
         setting_backup = 1;
@@ -78,11 +78,11 @@ void SettingKey(void) {
  * @brief Process Rolling Key info
  */
 void RollingKey(void) {
-    static u8 rolling_backup = 1;
+    static uint8_t rolling_backup = 1;
     if ((rolling_backup == 1) &&
         (rolling_status == 0))  // Rolling key is pressed
     {
-        for (u8 i = 0; i < DICE_MAX_NUM;
+        for (uint8_t i = 0; i < DICE_MAX_NUM;
              ++i)  // Display "8" when pressing rolling
         {
             encodings[i] = kNumCoding[8];
@@ -92,18 +92,18 @@ void RollingKey(void) {
     } else if ((rolling_backup == 0) &&
                (rolling_status == 1))  // Rolling key is released
     {
-        static u8 ever_rolled = 0;
+        static uint8_t ever_rolled = 0;
         if (ever_rolled == 0)  // Update seed
         {
-            u16 time_high = T2H, time_low = T2L;
-            u16 seed = time_high << 8 | time_low;
+            uint16_t time_high = T2H, time_low = T2L;
+            uint16_t seed = time_high << 8 | time_low;
             srand(seed);
             AUXR &= 0xEF;  // Close timer 1
             ever_rolled = 1;
         }
         EA = 0;
         enable = 0;
-        for (u8 i = 0; i < dices_num; ++i) {
+        for (uint8_t i = 0; i < dices_num; ++i) {
             int random_num = rand() % 6 + 1;
             encodings[i] = kNumCoding[random_num];
             enable |= 1 << i;
@@ -114,7 +114,7 @@ void RollingKey(void) {
 }
 
 void KeysInspect(void);
-void Display(const u8* pNumEncodings, u8 num_enable);
+void Display(const uint8_t* pNumEncodings, uint8_t num_enable);
 void SavePower(void);
 void InterruptT0(void) __interrupt(1) {
     KeysInspect();
@@ -128,7 +128,7 @@ void InterruptIT1(void) __interrupt(2) { nop(); }
  * @brief Inspect keys' status
  */
 void KeysInspect(void) {
-    static u16 setting_buffer = 0xFFFF, rolling_buffer = 0xFFFF;
+    static uint16_t setting_buffer = 0xFFFF, rolling_buffer = 0xFFFF;
     setting_buffer = setting_buffer << 1 | setting;
     rolling_buffer = rolling_buffer << 1 | rolling;
     if (setting_buffer == 0x0000) {
@@ -149,8 +149,8 @@ void KeysInspect(void) {
  * @brief Character to show.
  * @param [in] led_code The character encoding.
  */
-void SendToShow(u8 num_encoding) {
-    for (u8 i = 0; i < 8; i++) {
+void SendToShow(uint8_t num_encoding) {
+    for (uint8_t i = 0; i < 8; i++) {
         P1_0 = num_encoding & 1;
         P1_1 = 0;
         P1_1 = 1;
@@ -163,8 +163,8 @@ void SendToShow(u8 num_encoding) {
 /**
  * @brief LED number display.
  */
-void Display(const u8* pNumEncodings, u8 num_enable) {
-    static u8 num_position = 0;
+void Display(const uint8_t* pNumEncodings, uint8_t num_enable) {
+    static uint8_t num_position = 0;
     SendToShow(0x00);               // LED消隐
     P1 = 0xC0 | num_position << 3;  // LED位选
     if (num_enable >> num_position & 1) {
@@ -181,7 +181,7 @@ void Display(const u8* pNumEncodings, u8 num_enable) {
  * @brief Power management.
  */
 void SavePower(void) {
-    static u16 idle_time = 0;
+    static uint16_t idle_time = 0;
     if ((setting_status == 0) || (rolling_status == 0)) {
         idle_time = 0;
     } else {
