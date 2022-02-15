@@ -17,12 +17,12 @@ __code const uint8_t kNumCoding[16] = {0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D,
                                        0x39, 0x5E, 0x79, 0x71};  // 0 to F
 
 #define DICE_MAX_NUM 4
-#define IDLE_TIME 30000
+#define IDLE_TIME 60000
 #define COUNT_OF(arr) (sizeof(arr) / sizeof(0 [arr]))
 #define DEFAULT_DICES_NUM 2
 #define DEFAULT_ENABLE 0x03
 
-uint8_t encodings[DICE_MAX_NUM] = {kNumCoding[1]};
+uint8_t buffer[DICE_MAX_NUM] = {kNumCoding[1]};
 uint8_t enable = DEFAULT_ENABLE;  // LED position enable
 uint8_t dices_num = DEFAULT_DICES_NUM;
 uint8_t setting_status = 1,
@@ -50,7 +50,7 @@ void Init(void) {
 
     setting_status = 1, rolling_status = 1;
     dices_num = DEFAULT_DICES_NUM;
-    memset(encodings, kNumCoding[1], DICE_MAX_NUM);
+    memset(buffer, kNumCoding[1], DICE_MAX_NUM);
     enable = DEFAULT_ENABLE;
 }
 
@@ -63,7 +63,7 @@ void SettingKey(void) {
         (setting_status == 1))  // Setting key is released
     {
         dices_num = (dices_num == DICE_MAX_NUM) ? 1 : dices_num + 1;
-        memset(encodings, kNumCoding[1], DICE_MAX_NUM);
+        memset(buffer, kNumCoding[1], DICE_MAX_NUM);
         enable = 0;
         for (uint8_t i = 0; i < dices_num; ++i) {
             enable |= 1 << i;
@@ -85,7 +85,7 @@ void RollingKey(void) {
         for (uint8_t i = 0; i < DICE_MAX_NUM;
              ++i)  // Display "8" when pressing rolling
         {
-            encodings[i] = kNumCoding[8];
+            buffer[i] = kNumCoding[8];
             enable |= 1 << i;
         }
         rolling_backup = 0;
@@ -101,14 +101,12 @@ void RollingKey(void) {
             AUXR &= 0xEF;  // Close timer 1
             ever_rolled = 1;
         }
-        EA = 0;
         enable = 0;
         for (uint8_t i = 0; i < dices_num; ++i) {
             int random_num = rand() % 6 + 1;
-            encodings[i] = kNumCoding[random_num];
+            buffer[i] = kNumCoding[random_num];
             enable |= 1 << i;
         }
-        EA = 1;
         rolling_backup = 1;
     }
 }
@@ -118,7 +116,7 @@ void Display(const uint8_t* pNumEncodings, uint8_t num_enable);
 void SavePower(void);
 void InterruptT0(void) __interrupt(1) {
     KeysInspect();
-    Display(encodings, enable);
+    Display(buffer, enable);
     SavePower();
 }
 void InterruptIT0(void) __interrupt(0) { nop(); }
@@ -164,17 +162,13 @@ void SendToShow(uint8_t num_encoding) {
  * @brief LED number display.
  */
 void Display(const uint8_t* pNumEncodings, uint8_t num_enable) {
-    static uint8_t num_position = 0;
-    SendToShow(0x00);               // LED消隐
-    P1 = 0xC0 | num_position << 3;  // LED位选
-    if (num_enable >> num_position & 1) {
-        SendToShow(pNumEncodings[num_position]);
+    static uint8_t cursor = 0;
+    SendToShow(0x00);         // LED消隐
+    P1 = 0xC0 | cursor << 3;  // LED位选
+    if (num_enable >> cursor & 1) {
+        SendToShow(pNumEncodings[cursor]);
     }
-    if (num_position < COUNT_OF(pNumEncodings)) {
-        ++num_position;
-    } else {
-        num_position = 0;
-    }
+    cursor = (cursor < COUNT_OF(pNumEncodings)) ? cursor + 1 : 0;
 }
 
 /**
