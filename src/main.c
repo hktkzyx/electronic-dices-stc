@@ -12,15 +12,20 @@ typedef unsigned int u16;
 SBIT(rolling, 0xB0, 2);  // P3_2 K3 rolling key
 SBIT(setting, 0xB0, 3);  // P3_3 k4 setting key
 
-__code u8 kLEDCoding[16] = {0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D,
-                            0x7D, 0x07, 0x7F, 0x6F, 0x77, 0x7C,
-                            0x39, 0x5E, 0x79, 0x71};  // 0 to F
+__code const u8 kNumCoding[16] = {0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D,
+                                  0x7D, 0x07, 0x7F, 0x6F, 0x77, 0x7C,
+                                  0x39, 0x5E, 0x79, 0x71};  // 0 to F
 
 #define DICE_MAX_NUM 4
 #define IDLE_TIME 30000
+#define COUNT_OF(arr) (sizeof(arr) / sizeof(0 [arr]))
+#define DEFAULT_DICES_NUM 2
+#define DEFAULT_ENABLE 0x03
 
-u8 leds[DICE_MAX_NUM] = {1};
-u8 dices_num = 1, setting_status = 1,
+u8 encodings[DICE_MAX_NUM] = {kNumCoding[1]};
+u8 enable = DEFAULT_ENABLE;  // LED position enable
+u8 dices_num = DEFAULT_DICES_NUM;
+u8 setting_status = 1,
    rolling_status = 1;  // Key status 0: pressed, 1: unpressed
 
 void Init(void);
@@ -43,8 +48,10 @@ void Init(void) {
     TR0 = 1, AUXR |= 0x10;              // Start timer
     P3 = 0xFF;                          // Pull up P3 as input IO
 
-    dices_num = 2, setting_status = 1, rolling_status = 1;
-    memset(leds, 1, DICE_MAX_NUM);
+    setting_status = 1, rolling_status = 1;
+    dices_num = DEFAULT_DICES_NUM;
+    memset(encodings, kNumCoding[1], DICE_MAX_NUM);
+    enable = DEFAULT_ENABLE;
 }
 
 /**
@@ -56,7 +63,11 @@ void SettingKey(void) {
         (setting_status == 1))  // Setting key is released
     {
         dices_num = (dices_num == DICE_MAX_NUM) ? 1 : dices_num + 1;
-        memset(leds, 1, DICE_MAX_NUM);
+        memset(encodings, kNumCoding[1], DICE_MAX_NUM);
+        enable = 0;
+        for (u8 i = 0; i < dices_num; ++i) {
+            enable |= 1 << i;
+        }
         setting_backup = 1;
     } else if ((setting_backup == 1) && (setting_status == 0)) {
         setting_backup = 0;
@@ -71,9 +82,11 @@ void RollingKey(void) {
     if ((rolling_backup == 1) &&
         (rolling_status == 0))  // Rolling key is pressed
     {
-        for (u8 i = 0; i < dices_num; ++i)  // Display "8" when pressing rolling
+        for (u8 i = 0; i < DICE_MAX_NUM;
+             ++i)  // Display "8" when pressing rolling
         {
-            leds[i] = 8;
+            encodings[i] = kNumCoding[8];
+            enable |= 1 << i;
         }
         rolling_backup = 0;
     } else if ((rolling_backup == 0) &&
@@ -89,8 +102,11 @@ void RollingKey(void) {
             ever_rolled = 1;
         }
         EA = 0;
+        enable = 0;
         for (u8 i = 0; i < dices_num; ++i) {
-            leds[i] = rand() % 6 + 1;
+            int random_num = rand() % 6 + 1;
+            encodings[i] = kNumCoding[random_num];
+            enable |= 1 << i;
         }
         EA = 1;
         rolling_backup = 1;
@@ -98,11 +114,11 @@ void RollingKey(void) {
 }
 
 void KeysInspect(void);
-void Display(void);
+void Display(const u8* pNumEncodings, u8 num_enable);
 void SavePower(void);
 void InterruptT0(void) __interrupt(1) {
     KeysInspect();
-    Display();
+    Display(encodings, enable);
     SavePower();
 }
 void InterruptIT0(void) __interrupt(0) { nop(); }
@@ -133,26 +149,32 @@ void KeysInspect(void) {
  * @brief Character to show.
  * @param [in] led_code The character encoding.
  */
-void SendToShow(u8 led_code) {
+void SendToShow(u8 num_encoding) {
     for (u8 i = 0; i < 8; i++) {
-        P1_0 = led_code & 1;
+        P1_0 = num_encoding & 1;
         P1_1 = 0;
         P1_1 = 1;
-        led_code = led_code >> 1;
+        num_encoding = num_encoding >> 1;
     }
     P1_2 = 0;
     P1_2 = 1;
 }
 
 /**
- * @brief LED position selection.
+ * @brief LED number display.
  */
-void Display(void) {
-    static u8 id_led = 0;
-    SendToShow(0x00);         // LED消隐
-    P1 = 0xC0 | id_led << 3;  // LED位选
-    SendToShow(kLEDCoding[leds[id_led]]);
-    id_led = (id_led >= dices_num - 1) ? 0 : id_led + 1;
+void Display(const u8* pNumEncodings, u8 num_enable) {
+    static u8 num_position = 0;
+    SendToShow(0x00);               // LED消隐
+    P1 = 0xC0 | num_position << 3;  // LED位选
+    if (num_enable >> num_position & 1) {
+        SendToShow(pNumEncodings[num_position]);
+    }
+    if (num_position < COUNT_OF(pNumEncodings)) {
+        ++num_position;
+    } else {
+        num_position = 0;
+    }
 }
 
 /**
