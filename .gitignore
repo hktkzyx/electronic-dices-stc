@@ -1,7 +1,8 @@
 # User define
-.pio
-.pytest_cache
-.vscode
+.pio/
+.pytest_cache/
+.vscode/
+site/
 
 # Prerequisites
 *.d
