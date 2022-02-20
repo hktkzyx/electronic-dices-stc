@@ -30,7 +30,6 @@ plugins:
 extra:
   version:
     provider: mike
-    default: latest
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/hktkzyx
