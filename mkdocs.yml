@@ -45,15 +45,22 @@ markdown_extensions:
   - md_in_html # Images with caption
   - meta
   - tables
+  - toc:
+      permalink: true
+  # MathJax
+  - pymdownx.arithmatex:
+      generic: true
   # Code block
   - pymdownx.highlight:
       anchor_linenums: true
   - pymdownx.inlinehilite
+  - pymdownx.magiclink:
+      repo_url_shortener: true
+      repo_url_shorthand: true
+      user: hktkzyx
+      repo: electronic-dices-stc-firmware
   - pymdownx.snippets
   - pymdownx.superfences
-  # MathJax
-  - pymdownx.arithmatex:
-      generic: true
 
 # MathJax
 extra_javascript:
